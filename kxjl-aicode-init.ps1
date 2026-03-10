@@ -72,11 +72,12 @@ if (-not $useGit) {
 Write-Host "正在添加 serena MCP 服务器..."
 $projectPath = (Get-Location).Path
 Write-Host "项目路径: $projectPath"
-& claude mcp add serena uvx --from git+https://github.com/oraios/serena serena start-mcp-server --context ide-assistant --project $projectPath
+& claude mcp add serena -- "uvx --from git+https://github.com/oraios/serena serena start-mcp-server --context ide-assistant --project $projectPath"
 
 if ($LASTEXITCODE -ne 0) {
     Write-Error "claude mcp add 命令失败。"
-    exit $LASTEXITCODE
 }
 
-Write-Host "所有命令执行完毕。"
+Write-Host "所有命令执行完毕，尝试打开Claude"
+
+claude
