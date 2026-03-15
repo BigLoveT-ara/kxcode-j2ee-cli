@@ -1,9 +1,28 @@
 # 项目技术栈
-<% if (projectType === 'ptah') { %>
-本项目是基于电话机器人平台调用外部能力的中转组件，所以仅提供 API 接口
-Api 接口的入参与返回参数均已设计完成，请参考`/docs/framework/business-interface.md`进行开发。
-<% } -%>
 [这里填充项目技术栈内容]
+
+
+<% if (projectType === 'ptah') { %>
+# 项目介绍
+
+## 人机交互系统外部接口调用
+人机交互系统会在需要时调用本项目接口，接口中携带历史人机交互信息、上下文变量信息等，当你需要更新人机交互系统的上下文变量信息时可以通过返回特定结构来实现。
+机器人系统会使用上下文变量信息来实现动态回复内容的拼装或者是人机交互流程的走向判断。
+Api 接口的入参与返回参数均已设计完成，请参考`docs/framework/brain-session.md`进行开发。
+
+## 人机交互系统数据推送处理
+人机交互系统会在会话结束后推送完整的人机交互信息到Kafka，包括历史人机交互信息、上下文变量、标签信息等。
+项目可以通过监听kafka的相关Topic实现数据的监听和异步处理。
+Kafka中存放的数据结构已经确定，请参考`docs/framework/brain-session.md`
+
+## 人机交互信息的核心字段
+    人机交互信息已数组形式存放，每次人机交互都会在数组中已一个对象的形式存在。
+    对象中包含机器人播报节点名称、用户回答命中节点名称、用户回答内容、命中业务标签等。
+
+## 上下文变量信息
+    上下文变量信息已key-value键值对的形式存放，仅支持Integer、String等基本数据类型，key采用英文命名防止出现歧义。
+    同名（key相同）的上下文变量信息
+<% } -%>
 
 # 项目包结构
 ```
@@ -39,8 +58,8 @@ Api 接口的入参与返回参数均已设计完成，请参考`/docs/framework
 - 如果是支持分页查询 Api 的参数请使用`com.kxjl.aimp.label.bean.dto.BasePageDTO<T>`,检索的条件方法需要放到泛型对象 T 中
 <% } -%>
 <% if (projectType === 'ptah') { %>
-- Api 接口的返回值使用统一的`com.kxjl.qetesh.common.response.ServiceResponse<BrainResult>`进行返回
-- Api 接口参数的 JSON 是固定格式的，请参考`docs/framework/brain-interaction.md`文件进行理解
+- Api 接口的返回值使用统一的`com.kxjl.qetesh.common.response.ServiceResponse<BrainResult[]>`进行返回
+- Api 接口参数的 JSON 是固定格式的，请参考`docs/framework/brain-session.md`文件进行理解
 <% } -%>
 
 ## Service 层规范

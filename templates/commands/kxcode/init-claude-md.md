@@ -1,5 +1,5 @@
 ---
-name: "kxjl:init-claude-md"
+name: "kxcode:init-claude-md"
 description: 初始化j2ee项目Claude的CLAUDE.md文件
 category: Workflow
 tags: [workflow, artifacts, experimental]
@@ -32,7 +32,7 @@ tags: [workflow, artifacts, experimental]
 - **数据隔离**: 多租户架构，通过 `biz_id` 隔离，通过`com.kxjl.aimp.label.common.utils.AuthUtils.getCurrentBizId()`方法获取
 - **开发环境**：windows 、 Intellij
 ```
-   
+
 
 3. **解析项目的包结构描述**
    输出项目的包路径结构与作用，格式参考下面
@@ -58,7 +58,7 @@ com.kxjl.aimp.label (root)
 
 4. **扫描数据库实体类**
    
-   如果项目使用了数据库与ORM框架，扫描相关类的属性与注解，生成关于数据库的详细描述并输出至`docs/design/table_design.md`文件中。
+   如果项目使用了数据库与ORM框架，扫描相关类的属性与注解，生成关于数据库的详细描述并输出至`docs/design/table-design.md`文件中。
 
 4.1. **表结构分析**
    模板可以参考下面的格式，使用md的表格来展示数据库的相关设计，不能用使用SQL文件来表示

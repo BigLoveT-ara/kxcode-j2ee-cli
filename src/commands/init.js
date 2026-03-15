@@ -226,7 +226,11 @@ async function doInit(options) {
   printDivider();
   info('复制 SKILL 模板...');
   const templateSkillsDir = resolvePath(getTemplateDir(), 'skills');
-  await copyDir(templateSkillsDir, skillsDir);
+  // 非 Ptah 项目类型时，过滤掉 Ptah 专属的 skills
+  const excludeSkills = projectTypeAnswer.projectType !== 'ptah'
+    ? ['kxcode-create-brainsession-listen', 'kxcode-create-business-api']
+    : [];
+  await copyDir(templateSkillsDir, skillsDir, excludeSkills);
   success('SKILL 模板复制完成');
 
   // 7. 复制 templates/rules 到 .claude/rules
