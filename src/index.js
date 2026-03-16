@@ -5,6 +5,7 @@ const { version, description } = require('../package.json');
 
 // 导入命令
 const initCommand = require('./commands/init');
+const updateCommand = require('./commands/update');
 
 // 设置 CLI 信息
 program
@@ -14,6 +15,7 @@ program
 
 // 注册命令
 initCommand(program);
+updateCommand(program);
 
 // 解析命令行
 program.parse();
