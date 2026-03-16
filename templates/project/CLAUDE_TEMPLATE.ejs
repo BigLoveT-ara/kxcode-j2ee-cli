@@ -37,62 +37,9 @@ Kafka中存放的数据结构已经确定，请参考`docs/framework/brain-sessi
 # 工具类的使用
 需要使用到字符串、文件、集合、编解码、加解密相关的 Api 时请查阅`docs/framework/utils-method.md`文档
 
-# Api/Controller/Service/Mapper/bean 对象设计规范
-## Java 数据对象设计规范
-- `*DAO.java`与数据库表结构一一对应，用作结构化数据库映射。
-- `DAO.java`如果保存了关联查询的相关字段或非持久化字段，请使用相关注解表示
-- 如果 API 的参数对象的属性属于`*DAO.java`的子集，请直接复用`*DAO.java`对象不需要额外创建，但是需要在接口说明中标注是否必须。
-- 如果 API 的返回值对象的属性属于`*DAO.java`的子集，请直接复用`*DAO.java`对象不需要额外创建，但是需要在接口说明中标注是否必须。
-- 如果数据库查询、接口返回、接口接收参数无法使用现有对象时，请根据用途创建对应的 vo、dto、pojo 对象。
+## Spring注入规范
+- 优先使用fianl定义变量与`@RequiredArgsConstructor`注解配合使用实现注入
 
-
-## API/Controller层规范
-- 使用 RESTful 风格设计 url，仅允许使用`GET`、`POST`的 Method 进行接口设计，绝对不能使用 Delete、PUT 等
-- Api 接口使用`@PostMapping`与`@GetMapping`完成注解，并添加`produces = MediaType.APPLICATION_JSON_VALUE`的属性，指定 json 类型返回
-- Api 中 url 定义需要在类上的`@RequestMapping`中制定 url 为`/api/v1/<moduleName>`
-- Api 中接受 json 类型的参数时，需要使用对象进行接收并添加`@RequestBody`注解
-- Api 的 url 命名规范使用 snake_case 命名法，如果使用路径变量命名可以使用 lowerCamelCase 命名
-<% if (projectType === 'j2ee') { %>
-- 通过业务模块来进行 `*Api.java` 文件的创建，不需要与表结构一一对应
-- Api 接口的返回值使用统一的`com.kxjl.qetesh.common.response.ServiceResponse<T>`进行返回
-- 如果是支持分页查询 Api 的参数请使用`com.kxjl.aimp.label.bean.dto.BasePageDTO<T>`,检索的条件方法需要放到泛型对象 T 中
-<% } -%>
-<% if (projectType === 'ptah') { %>
-- Api 接口的返回值使用统一的`com.kxjl.qetesh.common.response.ServiceResponse<BrainResult[]>`进行返回
-- Api 接口参数的 JSON 是固定格式的，请参考`docs/framework/brain-session.md`文件进行理解
-<% } -%>
-
-## Service 层规范
-- 绝对不允许在 `*Service.java`与 `ServiceImpl.java`中继承或实现 Mybatisplus 框架中 `IService`相关的接口
-- Service 层方法中涉及到数据库的删改查操作，需要添加`@Transactional` 注解
-- Api 接口的返回值使用统一的`com.kxjl.qetesh.common.response.ServiceResponse<T>`进行返回
-- 对于接收到的参数需要根据业务进行非空校验
-- Service 层方法，需要对方法体进行 try 的包裹，并在 catch 中打印详细报错日志并且返回 `ServiceResponse`
-- 分页查询编写的代码示例如下，请参考
-```java
-    public IPage<UserDAO> getUserPagedByTeamId(PageParamsDTO<UserDAO> page) {
-        // 创建分页对象
-        IPage<UserDAO> iPage = new Page<>(page.getCurrent(), page.getSize());
-        // 构建查询条件
-        LambdaQueryWrapper<UserDAO> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(UserDAO::getBizId, AuthUtils.getCurrentBizId());
-        if (Objects.nonNull(page.getSearch())) {
-            UserDAO search = page.getSearch();
-            queryWrapper.eq(Objects.isNull(search.getTeamId()), UserDAO::getTeamId, search.getTeamId());
-            queryWrapper.like(StringUtils.isNotBlank(search.getPhone()), UserDAO::getPhone, StringUtils.trimToEmpty(search.getPhone()));
-            queryWrapper.eq(UserDAO::getIsDeleted, false);
-        }
-        return userMapper.selectPage(iPage, queryWrapper);
-    }
-```
-<% if (useDatabase === true) { %>
-## 数据持久层规范
-- 使用`*Mapper.xml`实现查询逻辑时，需要确保输出字段最小化，不要查询未使用到的大量字段和内容。
-- 根据 ID 查询、单表条件、单表更新、单表删除、逐渐删除等数据操作使用`BaseMapper`中的相关方法，方法速查表在 `docs/framework/mybatisplus-method.md`中，需要的时候可以查看。
-- 1：n 的级联查询，需要在 `Service`方法中使用二次查询，一次查询主表一次查询子表，然后再进行输出对象封装。
-- 1:1 的级联查询，需要在主表的 `*Mapper.xml`文件中，定义显示 SQL 语句进行查询。
-- `Mapper.xml`文件中绝对不能出现`DAO` 对象的 ResultMap 定义，直接使用框架的自动映射即可
-<% } -%>
 
 <% if (projectType === 'ptah') { %>
 # 业务包标准接口功能描述
