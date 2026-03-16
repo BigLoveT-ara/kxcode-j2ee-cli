@@ -17,7 +17,7 @@
     {
       "name": "td-design",
       "desc": "数据库表结构设计助手",
-      "scope": "normal",
+      "scope": "disable",
       "dir": "kxcode-table-design"
     },
     {
