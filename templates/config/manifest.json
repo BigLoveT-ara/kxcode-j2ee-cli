@@ -1,0 +1,41 @@
+{
+  "commands": [
+    {
+      "name": "kxcode:init-claude-md",
+      "desc": "初始化 claude.md 文件",
+      "scope": "normal",
+      "file": "kxcode/init-claude-md.md"
+    }
+  ],
+  "skills": [
+    {
+      "name": "kxcode:init-claude-md",
+      "desc": "分析并初始化 J2EE 项目的 CLAUDE.md 文件",
+      "scope": "normal",
+      "dir": "kxcode-table-design"
+    },
+    {
+      "name": "td-design",
+      "desc": "数据库表结构设计助手",
+      "scope": "normal",
+      "dir": "kxcode-table-design"
+    },
+    {
+      "name": "kxcode-create-business-api",
+      "desc": "Ptah 电话机器人平台业务包接口编码工作流",
+      "scope": "ptah",
+      "dir": "kxcode-create-business-api"
+    },
+    {
+      "name": "kxcode-create-brainsession-listen",
+      "desc": "Brain 交互详情的 Kafka 消费者开发工作流",
+      "scope": "ptah",
+      "dir": "kxcode-create-brainsession-listen"
+    }
+  ],
+  "scope說明": {
+    "normal": "所有项目类型都可以使用",
+    "ptah": "仅 Ptah 项目类型可以使用",
+    "disable": "禁用此项，不会复制到目标项目"
+  }
+}

@@ -23,6 +23,64 @@ const {
 } = require('../utils/ui');
 
 /**
+ * 加载 manifest 配置文件
+ * @returns {Object} manifest 配置对象
+ */
+async function loadManifest() {
+  const manifestPath = resolvePath(getTemplateDir(), 'config', 'manifest.json');
+  if (!await fileExists(manifestPath)) {
+    warn('manifest.json 配置文件不存在');
+    return { commands: [], skills: [] };
+  }
+  const content = await readFile(manifestPath);
+  return JSON.parse(content);
+}
+
+/**
+ * 根据作用域过滤技能列表
+ * @param {Array} skills - 技能列表
+ * @param {string} projectType - 项目类型 (j2ee|ptah)
+ * @returns {Array} 过滤后的技能目录列表
+ */
+function filterSkillsByScope(skills, projectType) {
+  const scope = projectType === 'ptah' ? 'ptah' : 'normal';
+  const filteredSkills = skills.filter(skill => {
+    // scope 为 disable 的技能直接被禁用
+    if (skill.scope === 'disable') {
+      return false;
+    }
+    // scope 为 normal 的技能所有项目都可以使用
+    // scope 为 ptah 的技能只有 ptah 项目才能使用
+    if (skill.scope === 'normal') {
+      return true;
+    }
+    return scope === 'ptah';
+  });
+  return filteredSkills.map(skill => skill.dir);
+}
+
+/**
+ * 根据作用域过滤命令列表
+ * @param {Array} commands - 命令列表
+ * @param {string} projectType - 项目类型 (j2ee|ptah)
+ * @returns {Array} 需要复制的命令文件路径列表
+ */
+function filterCommandsByScope(commands, projectType) {
+  const scope = projectType === 'ptah' ? 'ptah' : 'normal';
+  const filteredCommands = commands.filter(command => {
+    // scope 为 disable 的命令直接被禁用
+    if (command.scope === 'disable') {
+      return false;
+    }
+    if (command.scope === 'normal') {
+      return true;
+    }
+    return scope === 'ptah';
+  });
+  return filteredCommands.map(command => command.file);
+}
+
+/**
  * 复制目录下的所有文件（通用逻辑，保留目标目录原有内容）
  * @param {string} srcDir - 源目录
  * @param {string} destDir - 目标目录
@@ -209,12 +267,14 @@ async function doUpdate() {
   printDivider();
   info('更新 SKILL 模板（按文件夹覆盖）...');
   const templateSkillsDir = resolvePath(getTemplateDir(), 'skills');
-  // 非 Ptah 项目类型时，过滤掉 Ptah 专属的 skills
-  const excludeSkills = projectType !== 'ptah'
-    ? ['kxcode-create-brainsession-listen', 'kxcode-create-business-api']
-    : [];
-  await copySkillsWithOverride(templateSkillsDir, skillsDir, excludeSkills);
-  success('SKILL 模板更新完成（原文件夹已覆盖）');
+  // 加载 manifest 配置，根据作用域过滤 skills
+  const manifest = await loadManifest();
+  const excludeSkills = filterSkillsByScope(manifest.skills, projectType);
+  // 复制时排除不在列表中的 skills
+  const allSkillDirs = manifest.skills.map(s => s.dir);
+  const skillsToExclude = allSkillDirs.filter(dir => !excludeSkills.includes(dir));
+  await copySkillsWithOverride(templateSkillsDir, skillsDir, skillsToExclude);
+  success(`SKILL 模板更新完成（已根据作用域过滤，排除 ${skillsToExclude.length} 个）`);
 
   // 5. 复制/更新 templates/rules 到 .claude/rules（按文件覆盖，保留用户新增文件）
   printDivider();
@@ -228,14 +288,20 @@ async function doUpdate() {
   printDivider();
   info('更新 Commands 模板...');
   const templateCommandsDir = resolvePath(getTemplateDir(), 'commands');
-  const templateKxcodeCommandsDir = resolvePath(templateCommandsDir, 'kxcode');
-  const targetKxcodeCommandsDir = resolvePath(commandsDir, 'kxcode');
+  // 根据作用域过滤 commands，获取需要复制的文件列表
+  const commandsToCopy = filterCommandsByScope(manifest.commands, projectType);
 
-  // 先复制 kxcode 命令（按文件覆盖）
-  await copyCommandsWithOverride(templateKxcodeCommandsDir, targetKxcodeCommandsDir);
-  // 复制其他 commands（通用逻辑）
-  await copyDir(templateCommandsDir, commandsDir, ['.gitkeep', 'kxcode']);
-  success('Commands 模板更新完成');
+  // 复制过滤后的命令文件（按文件覆盖）
+  for (const commandFile of commandsToCopy) {
+    const srcPath = resolvePath(templateCommandsDir, commandFile);
+    const destPath = resolvePath(commandsDir, commandFile);
+    if (await fileExists(srcPath)) {
+      // 确保目标目录存在
+      await ensureDir(path.dirname(destPath));
+      await fs.copy(srcPath, destPath);
+    }
+  }
+  success(`Commands 模板更新完成（已根据作用域过滤，复制 ${commandsToCopy.length} 个）`);
 
   // 7. 复制/更新 templates/docs 到根目录（按文件覆盖，保留用户新增文件）
   printDivider();
