@@ -1,8 +1,3 @@
-/**
- * 
- */
-package com.kxjl.qetesh.dto;
-
 import java.util.List;
 
 import com.kxjl.qetesh.dto.BrainSessionDTO.Tag;

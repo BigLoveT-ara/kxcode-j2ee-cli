@@ -1,8 +1,3 @@
-package com.kxjl.qetesh.common.response;
-
-
-import com.kxjl.qetesh.common.page.PageWrapper;
-
 import java.util.Collection;
 import java.util.Map;
 
@@ -90,9 +85,6 @@ public class ServiceResponse<T> {
         }
         if (data instanceof Map) {
             return new ServiceResponse<T>().setCode(code.getCode()).setMsg(code.getMsg()).setDataType(ResponseDataType.MAP).setData(data);
-        }
-        if(data instanceof PageWrapper){
-            return new ServiceResponse<T>().setCode(code.getCode()).setMsg(code.getMsg()).setDataType(ResponseDataType.PAGE).setData(data);
         }
         return new ServiceResponse<T>().setCode(code.getCode()).setMsg(code.getMsg()).setDataType(ResponseDataType.SINGLE).setData(data);
     }

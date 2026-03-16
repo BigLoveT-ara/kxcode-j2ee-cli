@@ -1,61 +1,60 @@
 ---
 name: kxcode-create-brainsession-listen
-description: Ptah电话机器人平台业务包接口编码工作流规范。当用户提出任何关于项目的业务包编码需求、功能开发、接口设计、业务逻辑实现时，必须触发此 Skill。注意：仅在用户明确表明需要新增一个业务包接口时才需要遵循并触发本Skill。
+description: BrainSession 与 Brain 交互详情的 Kafka 消费者开发工作流。仅当用户明确提到为 BrainSession（Brain 会话）或 Brain 交互详情创建 Kafka 监听与数据处理逻辑时，才触发此 Skill。触发关键词示例："给 BrainSession 加监听"、"消费 Brain 交互详情的消息"、"BrainSession kafka 入库"、"处理 Brain 会话消息"。不适用于其他业务模块的 Kafka 开发。
 ---
-
-# Ptah电话机器人平台业务包说明
-人机交互系统会在需要时调用本项目接口，接口中携带历史人机交互信息、上下文变量信息等，当你需要更新人机交互系统的上下文变量信息时可以通过接口返回来实现。
-机器人系统会使用上下文变量信息来实现动态回复内容的拼装或者是人机交互流程的走向判断。
-Api 接口的入参与返回参数均已设计完成，请参考 `docs/framework/business-interface.md` 进行开发。
-
-
-# 业务包接口编码工作流 Skill
-
-本 Skill 定义了在Ptah电话机器人的业务包类型项目中进行功能开发时，Claude 必须严格遵守的**需求澄清流程**和**编码规范**。
-
+ 
+# BrainSession / Brain 交互详情 Kafka 消费者开发工作流
+ 
+本 Skill 专用于 **BrainSession（Brain 会话）** 与 **Brain 交互详情** 两类业务数据的 Kafka 消息监听与处理开发，定义了 Claude 必须严格遵守的**需求澄清流程**与**编码规范**。
+ 
+> 适用范围：仅限 BrainSession 或 Brain 交互详情相关的消费者开发，其他业务模块的 Kafka 需求不使用本 Skill。
+ 
 ---
-
+ 
 ## 一、工作流阶段总览
-
+ 
 ```
-[需求澄清] → [返回值确认] → [数据库设计（按需）] → [逻辑实现] → [代码输出]
+[需求澄清] → [详细设计澄清] → [字段映射澄清] → [逻辑确认] → [代码输出] → [代码校验] → [更新 claude.md]
 ```
-
+ 
 Claude 在任何编码任务开始前，**必须按顺序走完以下每个阶段**，不得跳过。
-
+ 
 ---
-
+ 
 ## 二、阶段详细说明
-
-### 阶段 0：需求澄清（自然对话）
-
-- 与用户正常沟通，理解业务背景
-- 确认功能边界、输入输出的业务含义
-- **不需要用户主动说完所有细节**，Claude 应主动提问直到需求清晰
-
+ 
+### 阶段 1：确定数据处理需求
+ 
+首先确认本次需求属于哪类业务数据，再确认消费后的核心处理方式（处理方式可能同时存在）：
+ 
+- **BrainSession**：Brain 会话记录，通常包含会话基本信息、状态变更等
+- **Brain 交互详情**：单次 Brain 交互的输入输出详情数据
+ 
+处理方式：
+ 
+- **数据入库**：将消息数据持久化到数据库表
+- **调用外部接口**：将消息数据转发或推送至第三方 HTTP 接口
+ 
+> 必须询问：
+> 1. 本次处理的是 BrainSession 数据还是 Brain 交互详情数据？消息来自哪个 Topic？消息格式是什么（JSON 结构 / 示例）？
+> 2. 处理失败时，是否需要重试？重试策略是什么？
+> 3. 是否需要幂等处理（如防止重复消费）？
+ 
 ---
-
-### 阶段 1：确认返回值
-
-需求澄清后，**必须明确询问**：
-
-> "你需要这个接口返回什么变量值，供Ptah电话机器人使用？他是什么类型"
-
-- 如果有返回值 → 确认用户希望返回的变量的类型和Key，并在最终返回时已`ServiceResponse<BrainResult[]>`进行构建
-- 如果无返回值 → 返回类型为 `ServiceResponse<Void>`
-
----
-
-### 阶段 2：数据库设计（按需）
-
-根据需求判断是否涉及数据持久化。**若需要新建或修改表**，进入本阶段：
-
-**2.1 与用户确认字段设计**
-- 主动列出建议字段，询问用户是否需要增删改
-- 确认主键策略、索引需求、是否需要逻辑删除字段（如 `is_deleted`）
-
-**2.2 输出以下三项内容（缺一不可）：**
-
+ 
+### 阶段 2：详细设计澄清
+ 
+根据阶段 1 的结论，分别针对数据库和外部接口进行详细澄清。
+ 
+#### 2.1 数据入库 — 表结构确认
+ 
+- 若**已有表**：请用户提供表结构说明（支持以下方式之一）：
+  - 提供 HTTP 文档地址（Claude 会使用 `web_fetch` 拉取内容）
+  - 提供本地 `.md` 文件（Claude 会读取文件内容）
+  - 直接在对话中粘贴字段说明
+ 
+- 若**表不存在**，需进行表结构设计，并**必须同时输出以下三件套**：
+ 
 #### ① 字段说明文档
 
 | 字段名 | 类型 | 是否必填 | 说明 |
@@ -77,7 +76,7 @@ CREATE TABLE `表名` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='表说明';
 ```
-建表SQL在确认后需要输出到`docs/design/<databaseName>.sql`文件下进行存储，
+建表SQL在确认后需要输出到`docs/design/tb_create.sql`文件下进行存储，
 
 #### ③ 数据持久层对象创建
 
@@ -133,91 +132,239 @@ public interface OriginalDataMapper extends BaseMapper<OriginalDataDAO> {
 ```
 在`src/main/mapper`文件夹下创建 `*Mapper.xml`的mybatisxml文件。
 
-其他细则请参考`Api/Service/Mapper/bean 对象设计规范`
+其他细则请参考`Api/Controller/Service/Mapper/bean 对象设计规范`
 
 ---
-
-### 阶段 3：确认实现逻辑
-
-在编写代码前，**必须与用户确认核心逻辑**：
-
-> "我理解的实现逻辑是这样的：[逐条列出步骤]，请确认是否正确，或有需要调整的地方？"
-
+ 
+#### 2.2 调用外部接口 — 接口详情确认
+ 
+- 若**已有接口文档**：请用户提供（支持以下方式之一）：
+  - 提供 HTTP 文档地址（Claude 会使用 `web_fetch` 拉取内容）
+  - 提供本地 `.md` 文件（Claude 会读取文件内容）
+  - 直接在对话中粘贴接口说明
+ 
+- 至少需要确认以下信息：
+  - 接口地址、HTTP 方法（GET / POST）
+  - 请求 Header（是否需要鉴权，Token 如何获取）
+  - 请求体结构（入参字段名、类型、是否必填）
+  - 响应结构（如何判断调用成功/失败）
+  - 接口调用是否有超时要求或重试机制
+ 
+---
+ 
+### 阶段 3：字段映射与生成逻辑澄清
+ 
+在清楚了消息格式和目标结构（表字段 / 接口入参）后，逐一分析映射关系：
+ 
+> 对于**不能直接映射**的字段，必须向用户明确以下问题：
+> - 该字段的值从哪里来？（消息字段 / 配置文件 / 数据库查询 / 计算逻辑）
+> - 是否存在格式转换？（时间戳转日期、枚举值映射、单位换算等）
+> - 是否需要做空值处理或默认值兜底？
+ 
+建议以表格形式呈现映射关系供用户确认，例如：
+ 
+| 目标字段 | 来源 | 转换逻辑 | 待确认 |
+|----------|------|----------|--------|
+| `deviceId` | 消息 `device_id` | 直接映射 | 否 |
+| `reportTime` | 消息 `ts`（毫秒时间戳） | 转换为 `LocalDateTime` | 否 |
+| `status` | 固定值 | 默认写入 `1` | 是 ✋ |
+ 
+---
+ 
+### 阶段 4：逻辑实现确认
+ 
+在编写代码前，**必须与用户确认完整的处理流程**：
+ 
+> "我理解的消费逻辑是这样的：
+> 1. 监听 Topic `xxx`，反序列化消息为 `BrainSessionDTO`
+> 2. 校验消息合法性（如必填字段）
+> 3. [入库]：构造 DAO 并调用 Mapper 保存
+> 4. [调用接口]：构造请求体，调用 `XxxClient#post` 方法
+> 5. 处理异常，记录日志
+>
+> 请确认逻辑是否正确，或有需要调整的地方？"
+ 
 只有用户确认后，才进入代码输出阶段。
-
+ 
 ---
-
-### 阶段 4：代码输出
-
-**4.1 接口签名规范相关类的引入确认**
-判断项目是否引入了`qetesh-commons`的jar包，并确定`com.kxjl.qetesh.dto.BrainSessionDTO`,`com.kxjl.qetesh.dto.TraceDTO`，`com.kxjl.qetesh.common.response.ServiceResponse<T>`是否引入。
-如果未引入，可以参考`references`中的java对象进行代码生成和输出。
-
-**4.2 代码最终输出**
-按照以下规范生成代码。
-
----
-
-## 三、编码规范
-
-
-
-### 3.2 接口签名规范（必须严格遵守）
-
-**请求参数**：统一使用 `com.kxjl.qetesh.dto.BrainSessionDTO`
-
-**返回值**：统一使用 `com.kxjl.qetesh.common.response.ServiceResponse<T>`
-- 有数据返回时，泛型 `T` 为 `BrainResult[]`（数组结构）
-- 无数据返回时，使用 `ServiceResponse<Void>`
-
-**Controller 方法签名示例：**
-
-```java
-@PostMapping("/xxx")
-public ServiceResponse<BrainResult[]> doSomething(@RequestBody BrainSessionDTO brainSessionDTO) {
-    // ...
-}
+ 
+### 阶段 5：代码输出
+ 
+#### 5.1 Kafka 依赖与配置检查
+ 
+在输出业务代码前，**必须先检查**项目中是否已引入 Kafka 依赖和配置：
+ 
+**检查 `pom.xml` 是否包含：**
+ 
+```xml
+<dependency>
+    <groupId>org.springframework.kafka</groupId>
+    <artifactId>spring-kafka</artifactId>
+</dependency>
 ```
-
-**Service 接口方法签名示例：**
-
-```java
-ServiceResponse<BrainResult[]> doSomething(BrainSessionDTO brainSessionDTO);
+ 
+**检查 `application.yml` / `application.properties` 是否包含 Kafka 配置：**
+ 
+```yaml
+spring:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: ${spring.application.name}
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      enable-auto-commit: false
+    listener:
+      ack-mode: manual_immediate
 ```
-
+ 
+若缺少依赖或配置，**必须先补充后再输出业务代码**，并告知用户需要同步修改。
+ 
+#### 5.2 代码输出内容
+ 
+按顺序输出以下内容（根据实际需要取舍）：
+ 
+1. **消息接收参数规范**：
+ 
+   Kafka 监听方法的入参**必须使用 `BrainSessionDTO` 进行封装**，不得自定义其他消息 DTO 类。
+   `BrainSessionDTO` 的字段定义详见 `references/BrainSessionDTO.java`，使用前须读取该文件确认字段结构。
+ 
+   > ⚠️ 禁止自行新建消息接收 DTO，所有消息均通过 `BrainSessionDTO` 反序列化。
+ 
+2. **Consumer 类**：监听器主体
+ 
+   ```java
+   @Slf4j
+   @Component
+   public class XxxConsumer {
+ 
+       // Topic 配置项命名规范：${kafka.topic.brain-session} 或 ${kafka.topic.brain-interaction}
+       @KafkaListener(topics = "${kafka.topic.brain-session}", groupId = "${spring.application.name}")
+       public void consume(ConsumerRecord<String, String> record, Acknowledgment ack) {
+           try {
+               // 固定使用 BrainSessionDTO 接收消息，字段参考 references/BrainSessionDTO.java
+               BrainSessionDTO msg = JSON.parseObject(record.value(), BrainSessionDTO.class);
+               // 处理逻辑
+               ack.acknowledge();
+           } catch (Exception e) {
+               log.error("[XxxConsumer] 消息处理异常, offset={}, value={}", record.offset(), record.value(), e);
+               // 视业务决定是否 ack，防止死循环
+               ack.acknowledge();
+           }
+       }
+   }
+   ```
+ 
+3. **Service 层**：数据处理逻辑（入库 / 调用接口）
+ 
+4. **外部接口调用规范**（若需要）：
+ 
+   - 必须使用 Spring Boot 框架提供的 **`RestTemplate`** 进行 HTTP 调用，不得使用 OkHttp、Feign、HttpClient 等其他方式
+   - 接口相关的 URL **必须提取到配置文件**中，禁止硬编码在代码里
+   - 配置项命名规范：`brain.api.xxx-url`，例如：
+ 
+   **`application.yml` 配置示例：**
+ 
+   ```yaml
+   brain:
+     api:
+       session-report-url: ${BRAIN_SESSION_REPORT_URL:http://localhost:8080/api/session/report}
+   ```
+ 
+   **Service 层调用示例：**
+ 
+   ```java
+   @Slf4j
+   @Service
+   public class XxxService {
+ 
+       @Value("${brain.api.session-report-url}")
+       private String sessionReportUrl;
+ 
+       private final RestTemplate restTemplate;
+ 
+       public XxxService(RestTemplate restTemplate) {
+           this.restTemplate = restTemplate;
+       }
+ 
+       /**
+        * 调用外部接口上报数据
+        */
+       public void reportToExternal(XxxRequestDTO requestDTO) {
+           try {
+               HttpHeaders headers = new HttpHeaders();
+               headers.setContentType(MediaType.APPLICATION_JSON);
+               HttpEntity<XxxRequestDTO> entity = new HttpEntity<>(requestDTO, headers);
+ 
+               ResponseEntity<String> response = restTemplate.postForEntity(sessionReportUrl, entity, String.class);
+               if (!response.getStatusCode().is2xxSuccessful()) {
+                   log.error("[XxxService] 外部接口调用失败, statusCode={}, body={}", response.getStatusCode(), response.getBody());
+               }
+           } catch (Exception e) {
+               log.error("[XxxService] 外部接口调用异常, url={}", sessionReportUrl, e);
+           }
+       }
+   }
+   ```
+ 
+   > ⚠️ 若项目中尚未注册 `RestTemplate` Bean，需在配置类中补充(可参考`./references/RestTemplateConfig.java`)：
+  
+ 
+5. **Mapper**（若需要）：Mybatisplus数据访问层
+ 
 ---
-
-### 3.3 ServiceResponse 使用约定
-
-```java
-// 成功，有数据
-return ServiceResponse.buildSuccess(results);
-
-// 成功，无数据
-return ServiceResponse.buildSuccess();
-
-// 失败
-return ServiceResponse.build(-1,"错误信息");
+ 
+### 阶段 6：代码校验
+ 
+代码输出完毕后，参考项目 `rules` 文件和 `CLAUDE.md` 中的规范要求，对生成的代码进行以下自查：
+ 
+- [ ] 包名是否符合项目规范
+- [ ] 类名、方法名命名是否符合规范
+- [ ] 日志格式是否统一（是否带有模块标识前缀，如 `[XxxConsumer]`）
+- [ ] 异常处理是否完善，是否有遗漏的 try-catch
+- [ ] 是否使用了项目统一的 JSON 工具类
+- [ ] 消息接收参数是否统一使用 `BrainSessionDTO`，未自行新建消息 DTO
+- [ ] 外部接口调用是否使用 `RestTemplate`，未使用其他 HTTP 客户端
+- [ ] 外部接口 URL 是否已提取到配置文件，未在代码中硬编码
+- [ ] 幂等逻辑是否已实现（如需要）
+- [ ] 外部接口调用是否有异常捕获与日志记录
+ 
+发现不符合规范之处，**直接修正后输出最终版本**，并告知用户修改了哪些地方。
+ 
+---
+ 
+### 阶段 7：更新 claude.md 消息队列章节
+ 
+代码校验通过后，更新项目 `claude.md` 文档中的 **`消息队列`** 章节，追加本次新增的生产者/消费者描述。
+ 
+**格式要求如下：**
+ 
+```markdown
+## 消息队列
+ 
+如果项目集成了消息中间件，请逐个分析生产者和消费者的相关代码位置和逻辑：
+- 分析生产者的业务和消息格式与具体代码位置（完整类名）
+- 分析消费者的业务和消息格式，并给出核心数据处理方法的具体位置（完整类名与方法名，如 `com.kxjl.demo.core.ReportTask#consume`）
+ 
+| 角色 | Topic | 业务 | 消息格式 | 代码位置 |
+|------|-------|------|----------|----------|
+| 生产者 | `${kafka.topic.brain-session}` | Brain 会话状态上报 | `BrainSessionDTO` JSON 字符串 | 外部 Brain 服务 |
+| 消费者 | `${kafka.topic.brain-session}` | 消费 Brain 会话消息，保存至数据库 | `BrainSessionDTO` JSON 字符串 | `com.kxjl.xxx.BrainSessionConsumer#consume` |
 ```
-
-> ⚠️ 若项目中 `ServiceResponse` 的静态方法名不同，以用户提供的实际实现为准。
-
+ 
+> ⚠️ 若 `CLAUDE.md` 中已存在 `消息队列` 章节，只追加新增的行，**不得删除已有记录**。
+ 
 ---
-
-### 3.4 代码风格要求
-
-- 使用 Lombok（`@Data`, `@RequiredArgsConstructor` 等），避免手写 getter/setter
-- Api 层不写业务逻辑，只做参数校验和调用 Service
-- 注释使用中文，方法级别必须有 Javadoc
-- 字段命名使用小驼峰，数据库字段使用下划线命名
-
----
-
-## 四、Claude 行为要求
-
-1. **不得在用户未确认逻辑前就输出完整代码**
-2. **每个阶段结束后，等待用户回复再进入下一阶段**
-3. **数据库设计三件套（字段文档、SQL、Entity）必须同时输出**
-4. **接口签名必须严格使用 `BrainSessionDTO` 和 `ServiceResponse<BrainResult[]>`，不得自行替换**
-5. 对于`BrainSessionDTO`的字段和内容不理解时可以参考`docs/framework/brain-session.md`文档进行理解
-6. 需求模糊时，主动提问，不得假设需求后直接编码
+ 
+## 三、Claude 行为要求
+ 
+1. **不得跳过任何阶段**，每个阶段必须等待用户确认后再推进
+2. **阶段 2 中，表结构三件套（字段文档、建表 SQL、Entity）必须同时输出**
+3. **阶段 3 中，所有不明确的字段映射必须逐一澄清，不得自行假设**
+4. **阶段 4 中，必须以结构化方式向用户陈述完整逻辑并等待确认**
+5. **阶段 5.1 中，Kafka 依赖和配置检查不可省略**
+6. **阶段 7 中，更新 claude.md 时只追加不覆盖**
+7. 文档地址（HTTP 或本地 `.md` 文件）由用户提供后，Claude 必须主动读取，不得让用户重复粘贴内容
+8. **消息接收参数必须使用 `BrainSessionDTO`**，输出代码前须读取 `references/BrainSessionDTO.java` 确认字段，不得自行定义消息 DTO
+9. **外部接口调用必须使用 `RestTemplate`**，URL 必须配置在 `application.yml` 中，禁止硬编码

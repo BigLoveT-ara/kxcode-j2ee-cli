@@ -37,7 +37,7 @@ Kafka中存放的数据结构已经确定，请参考`docs/framework/brain-sessi
 # 工具类的使用
 需要使用到字符串、文件、集合、编解码、加解密相关的 Api 时请查阅`docs/framework/utils-method.md`文档
 
-# Api/Service/Mapper/bean 对象设计规范
+# Api/Controller/Service/Mapper/bean 对象设计规范
 ## Java 数据对象设计规范
 - `*DAO.java`与数据库表结构一一对应，用作结构化数据库映射。
 - `DAO.java`如果保存了关联查询的相关字段或非持久化字段，请使用相关注解表示
@@ -46,7 +46,7 @@ Kafka中存放的数据结构已经确定，请参考`docs/framework/brain-sessi
 - 如果数据库查询、接口返回、接口接收参数无法使用现有对象时，请根据用途创建对应的 vo、dto、pojo 对象。
 
 
-## API 层规范
+## API/Controller层规范
 - 使用 RESTful 风格设计 url，仅允许使用`GET`、`POST`的 Method 进行接口设计，绝对不能使用 Delete、PUT 等
 - Api 接口使用`@PostMapping`与`@GetMapping`完成注解，并添加`produces = MediaType.APPLICATION_JSON_VALUE`的属性，指定 json 类型返回
 - Api 中 url 定义需要在类上的`@RequestMapping`中制定 url 为`/api/v1/<moduleName>`

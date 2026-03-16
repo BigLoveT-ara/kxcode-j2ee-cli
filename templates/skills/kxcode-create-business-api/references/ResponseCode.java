@@ -1,5 +1,3 @@
-package com.kxjl.qetesh.common.response;
-
 /**
  * ResponseCode的接口，供ServiceResponse使用。
  * 提供code编码和Msg内容

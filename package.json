@@ -1,6 +1,6 @@
 {
   "name": "kxcode-j2ee-cli",
-  "version": "1.0.1-beta-1",
+  "version": "1.0.1-beta-2",
   "description": "J2EE 项目 AI 编程环境快速初始化工具 - 支持 Claude Code、OpenSpec 等框架",
   "main": "src/index.js",
   "bin": {

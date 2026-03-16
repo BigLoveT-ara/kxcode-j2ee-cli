@@ -18,7 +18,7 @@ Api 接口的入参与返回参数均已设计完成，请参考 `docs/framework
 ## 一、工作流阶段总览
 
 ```
-[需求澄清] → [返回值确认] → [数据库设计（按需）] → [逻辑实现] → [代码输出]
+[需求澄清] → [返回值确认] → [数据库设计（按需）] → [逻辑实现] → [代码输出] → [代码检查]
 ```
 
 Claude 在任何编码任务开始前，**必须按顺序走完以下每个阶段**，不得跳过。
@@ -133,7 +133,7 @@ public interface OriginalDataMapper extends BaseMapper<OriginalDataDAO> {
 ```
 在`src/main/mapper`文件夹下创建 `*Mapper.xml`的mybatisxml文件。
 
-其他细则请参考`Api/Service/Mapper/bean 对象设计规范`
+其他细则请参考`Api/Controller/Service/Mapper/bean 对象设计规范`
 
 ---
 
@@ -154,9 +154,13 @@ public interface OriginalDataMapper extends BaseMapper<OriginalDataDAO> {
 如果未引入，可以参考`references`中的java对象进行代码生成和输出。
 
 **4.2 代码最终输出**
-按照以下规范生成代码。
+按照`三、编码规范`规范生成代码。
 
 ---
+
+
+### 阶段 5：代码检查
+针对代码4步骤中生成的代码,参考`CLAUDE.md`文件中的`Api/Controller/Service/Mapper/bean 对象设计规范`章节对代码进行规范检查和调整
 
 ## 三、编码规范
 

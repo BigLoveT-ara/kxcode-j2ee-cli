@@ -1,5 +1,3 @@
-package com.outbound.dtos;
-
 import org.apache.commons.lang.StringUtils;
 
 /**
