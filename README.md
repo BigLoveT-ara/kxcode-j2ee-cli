@@ -9,7 +9,7 @@ J2EE 项目 AI 编程环境快速初始化工具 - 支持 Claude Code、OpenSpec
 按照指定版本安装
 
 ```bash
-npm install -g git+http://github.com/BigLoveT-ara/kxcode-j2ee-cli.git#v1.0.3
+npm install -g git+http://github.com/BigLoveT-ara/kxcode-j2ee-cli.git#v1.0.4
 ```
 
 安装最新版本（可能是Beta）
@@ -93,29 +93,18 @@ kxcode-j2ee update
 - 更新 `.claude/rules/`（Rules 模板，按文件覆盖）
 - 更新 `docs/`（文档模板，保留用户新增文件）
 - 重新执行 SDD 框架 init（如果选择了）
-- 重新渲染 `.kxcode/CLAUDE_TEMPLATE.md`
 
-
-
-## 安装后在 Claude Code 中可用的 Commands
-
-执行 `init` 命令后，以下 Commands 可在 Claude Code 中使用：
-
-| Command | 作用 |
-|---------|------|
-| `/kxcode:init-claude-md` | 初始化 J2EE 项目的 CLAUDE.md 文件。分析项目技术栈、包结构、数据库实体、工具类、消息队列和定时任务，生成完整的项目开发指引文档 |
-
----
 
 ## 安装后在 Claude Code 中可用的 Skills
 
 执行 `init` 命令后，以下 Skills 可在 Claude Code 中使用：
 
 
-### Ptah 平台专用 Skills（仅 Ptah 项目类型）
+### Ptah 业务包项目专用 Skills
 
 | Skill | 作用 |
-|-------|------|
+|--------------|------|
+| `kxcode-init-claude-md` | 初始化 J2EE 项目的 CLAUDE.md 文件。分析项目技术栈、包结构、数据库实体、工具类、消息队列和定时任务，生成完整的项目开发指引文档 |
 | `kxcode-create-business-api` | Ptah 电话机器人平台业务包接口编码工作流，定义需求澄清流程、返回值确认、数据库设计三件套、编码规范等 |
 | `kxcode-create-brainsession-listen` | Brain 交互详情的 Kafka 消费者开发工作流，包括消息监听、数据入库、外部接口调用、RestTemplate 规范等 |
 
@@ -130,11 +119,23 @@ npm install -g git+http://github.com/BigLoveT-ara/kxcode-j2ee-cli.git#v1.0.1
 # 2. 进入目标 J2EE 项目目录
 cd /path/to/your/j2ee-project
 
-# 3. 初始化 AI 编程环境
+# 3. 初始化 AI 编程环境，选择合适的项目类型和SDD驱动框架
 kxcode-j2ee init
 
 # 4. 启动 Claude Code
 claude
+```
+
+## Claude Code 中指令使用
+```bash
+# 1. 初始化CLAUDE.md（claude 命令行中，非必须）
+/kxcode-init-claude-md
+
+# 2. 创建业务包接口 （claude 命令行中，非必须）
+/kxcode-create-business-api 根据进线手机号码查询24小时内进线次数
+
+# 3. 创建Brain交互监听 （claude 命令行中，非必须）
+/kxcode-create-brainsession-listen 监听Brain交互数据并推送至客户接口
 ```
 
 ## 项目结构
