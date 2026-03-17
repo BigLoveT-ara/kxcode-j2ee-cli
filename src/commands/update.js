@@ -109,42 +109,6 @@ async function copyDir(srcDir, destDir, excludeFiles = []) {
 }
 
 /**
- * 覆盖复制 skills 目录（按文件夹直接覆盖，不保留原文件夹内容）
- * @param {string} srcDir - 源目录
- * @param {string} destDir - 目标目录
- * @param {Array<string>} excludeSkills - 需要排除的 skill 文件夹名数组
- */
-async function copySkillsWithOverride(srcDir, destDir, excludeSkills = []) {
-  // 如果源目录不存在，直接返回
-  if (!await fileExists(srcDir)) {
-    return;
-  }
-
-  let entries;
-  try {
-    entries = await fs.readdir(srcDir, { withFileTypes: true });
-  } catch (err) {
-    warn(`无法读取目录 ${srcDir}: ${err.message}`);
-    return;
-  }
-
-  for (const entry of entries) {
-    if (excludeSkills.includes(entry.name)) {
-      continue;
-    }
-    if (entry.isDirectory()) {
-      const srcPath = path.join(srcDir, entry.name);
-      const destPath = path.join(destDir, entry.name);
-      // 如果目标文件夹已存在，先删除再复制（完全覆盖）
-      if (await fileExists(destPath)) {
-        await fs.remove(destPath);
-      }
-      await fs.copy(srcPath, destPath);
-    }
-  }
-}
-
-/**
  * 覆盖复制 commands/kxcode 目录下的文件（按文件覆盖）
  * @param {string} srcDir - 源目录（templates/commands/kxcode）
  * @param {string} destDir - 目标目录（.claude/commands/kxcode）
@@ -259,10 +223,18 @@ async function doUpdate() {
   // 加载 manifest 配置，根据作用域过滤 skills
   const manifest = await loadManifest();
   const filteredSkills = filterSkillsByScope(manifest.skills, projectType, aiTool);
-  // 复制时排除不在列表中的 skills
-  const allSkillDirs = manifest.skills.map(s => s.dir);
-  const skillsToExclude = allSkillDirs.filter(dir => !filteredSkills.includes(dir));
-  await copySkillsWithOverride(templateSkillsDir, skillsDir, skillsToExclude);
+  // 只复制 manifest 中配置且通过过滤的 skills（与 init 命令逻辑保持一致）
+  for (const skillDir of filteredSkills) {
+    const srcPath = resolvePath(templateSkillsDir, skillDir);
+    const destPath = resolvePath(skillsDir, skillDir);
+    if (await fileExists(srcPath)) {
+      // 如果目标文件夹已存在，先删除再复制（完全覆盖）
+      if (await fileExists(destPath)) {
+        await fs.remove(destPath);
+      }
+      await fs.copy(srcPath, destPath);
+    }
+  }
 
   // 处理 skill 的 templates 配置（EJS 模板渲染）
   const filteredSkillConfigs = manifest.skills.filter(skill =>
@@ -286,7 +258,7 @@ async function doUpdate() {
       }
     }
   }
-  success(`SKILL 模板更新完成（已根据作用域过滤，排除 ${skillsToExclude.length} 个）`);
+  success(`SKILL 模板更新完成（已根据作用域过滤，复制 ${filteredSkills.length} 个）`);
 
   // 5. 复制/更新 templates/rules 到 .claude/rules（按文件覆盖，保留用户新增文件）
   printDivider();
