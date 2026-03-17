@@ -6,9 +6,18 @@ J2EE 项目 AI 编程环境快速初始化工具 - 支持 Claude Code、OpenSpec
 
 ### 从 GitHub 安装（推荐）
 
+按照指定版本安装
+
 ```bash
 npm install -g git+http://github.com/BigLoveT-ara/kxcode-j2ee-cli.git#v1.0.3
 ```
+
+安装最新版本（可能是Beta）
+
+```bash
+npm install -g git+http://github.com/BigLoveT-ara/kxcode-j2ee-cli.git
+```
+
 
 ### 开发模式安装
 
