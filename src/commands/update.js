@@ -37,47 +37,37 @@ async function loadManifest() {
 }
 
 /**
- * 根据作用域过滤技能列表
+ * 根据项目类型和工具过滤技能列表
  * @param {Array} skills - 技能列表
  * @param {string} projectType - 项目类型 (j2ee|ptah)
+ * @param {string} aiTool - AI 工具 (claude)
  * @returns {Array} 过滤后的技能目录列表
  */
-function filterSkillsByScope(skills, projectType) {
-  const scope = projectType === 'ptah' ? 'ptah' : 'normal';
-  const filteredSkills = skills.filter(skill => {
-    // scope 为 disable 的技能直接被禁用
-    if (skill.scope === 'disable') {
-      return false;
-    }
-    // scope 为 normal 的技能所有项目都可以使用
-    // scope 为 ptah 的技能只有 ptah 项目才能使用
-    if (skill.scope === 'normal') {
-      return true;
-    }
-    return scope === 'ptah';
-  });
-  return filteredSkills.map(skill => skill.dir);
+function filterSkillsByScope(skills, projectType, aiTool = 'claude') {
+  return skills.filter(skill => {
+    // 检查项目类型是否匹配（空数组或不设置表示不限制）
+    const projectTypeMatch = !skill.projectType || !skill.projectType.length || skill.projectType.includes(projectType);
+    // 检查工具是否匹配（空数组或不设置表示不限制）
+    const toolsMatch = !skill.tools || !skill.tools.length || skill.tools.includes(aiTool);
+    return projectTypeMatch && toolsMatch;
+  }).map(skill => skill.dir);
 }
 
 /**
- * 根据作用域过滤命令列表
+ * 根据项目类型和工具过滤命令列表
  * @param {Array} commands - 命令列表
  * @param {string} projectType - 项目类型 (j2ee|ptah)
+ * @param {string} aiTool - AI 工具 (claude)
  * @returns {Array} 需要复制的命令文件路径列表
  */
-function filterCommandsByScope(commands, projectType) {
-  const scope = projectType === 'ptah' ? 'ptah' : 'normal';
-  const filteredCommands = commands.filter(command => {
-    // scope 为 disable 的命令直接被禁用
-    if (command.scope === 'disable') {
-      return false;
-    }
-    if (command.scope === 'normal') {
-      return true;
-    }
-    return scope === 'ptah';
-  });
-  return filteredCommands.map(command => command.file);
+function filterCommandsByScope(commands, projectType, aiTool = 'claude') {
+  return commands.filter(command => {
+    // 检查项目类型是否匹配（空数组或不设置表示不限制）
+    const projectTypeMatch = !command.projectType || !command.projectType.length || command.projectType.includes(projectType);
+    // 检查工具是否匹配（空数组或不设置表示不限制）
+    const toolsMatch = !command.tools || !command.tools.length || command.tools.includes(aiTool);
+    return projectTypeMatch && toolsMatch;
+  }).map(command => command.file);
 }
 
 /**
@@ -243,12 +233,11 @@ async function doUpdate() {
   const configContent = await readFile(configPath);
   const config = JSON.parse(configContent);
 
-  const { aiTool, projectType, useDatabase, sddFramework } = config;
+  const { aiTool, projectType, sddFramework } = config;
 
   success('配置读取成功');
   info(`  项目类型：${projectType === 'j2ee' ? '普通 J2EE 项目' : 'Ptah 平台业务包'}`);
   info(`  SDD 框架：${sddFramework === 'none' ? '不使用' : sddFramework}`);
-  info(`  是否使用数据库：${useDatabase ? '是' : '否'}`);
 
   // 3. 检查 .claude 目录结构
   printDivider();
@@ -269,11 +258,34 @@ async function doUpdate() {
   const templateSkillsDir = resolvePath(getTemplateDir(), 'skills');
   // 加载 manifest 配置，根据作用域过滤 skills
   const manifest = await loadManifest();
-  const excludeSkills = filterSkillsByScope(manifest.skills, projectType);
+  const filteredSkills = filterSkillsByScope(manifest.skills, projectType, aiTool);
   // 复制时排除不在列表中的 skills
   const allSkillDirs = manifest.skills.map(s => s.dir);
-  const skillsToExclude = allSkillDirs.filter(dir => !excludeSkills.includes(dir));
+  const skillsToExclude = allSkillDirs.filter(dir => !filteredSkills.includes(dir));
   await copySkillsWithOverride(templateSkillsDir, skillsDir, skillsToExclude);
+
+  // 处理 skill 的 templates 配置（EJS 模板渲染）
+  const filteredSkillConfigs = manifest.skills.filter(skill =>
+    filteredSkills.includes(skill.dir) && skill.templates && skill.templates.length > 0
+  );
+  for (const skillConfig of filteredSkillConfigs) {
+    const skillDir = resolvePath(skillsDir, skillConfig.dir);
+    for (const tmpl of skillConfig.templates) {
+      const tmplFilePath = resolvePath(skillDir, tmpl.tmplFile);
+      if (await fileExists(tmplFilePath)) {
+        const tmplContent = await readFile(tmplFilePath);
+        const renderedContent = ejs.render(tmplContent, {
+          aiTool: aiTool,
+          projectType: projectType,
+          sddFramework: sddFramework
+        });
+        const outFilePath = resolvePath(skillDir, tmpl.outFile);
+        await writeFile(outFilePath, renderedContent);
+        // 删除模板文件
+        await fs.remove(tmplFilePath);
+      }
+    }
+  }
   success(`SKILL 模板更新完成（已根据作用域过滤，排除 ${skillsToExclude.length} 个）`);
 
   // 5. 复制/更新 templates/rules 到 .claude/rules（按文件覆盖，保留用户新增文件）
@@ -289,7 +301,7 @@ async function doUpdate() {
   info('更新 Commands 模板...');
   const templateCommandsDir = resolvePath(getTemplateDir(), 'commands');
   // 根据作用域过滤 commands，获取需要复制的文件列表
-  const commandsToCopy = filterCommandsByScope(manifest.commands, projectType);
+  const commandsToCopy = filterCommandsByScope(manifest.commands, projectType, aiTool);
 
   // 复制过滤后的命令文件（按文件覆盖）
   for (const commandFile of commandsToCopy) {
@@ -349,28 +361,7 @@ async function doUpdate() {
     }
   }
 
-  // 9. 检查并更新 CLAUDE_TEMPLATE.md
-  printDivider();
-  info('检查 CLAUDE_TEMPLATE.md...');
-
-  const templatePath = resolvePath(getTemplateDir(), 'project', 'CLAUDE_TEMPLATE.ejs');
-  if (!await fileExists(templatePath)) {
-    warn('CLAUDE_TEMPLATE.ejs 模板不存在');
-  } else {
-    const templateContent = await readFile(templatePath);
-    const renderedContent = ejs.render(templateContent, {
-      aiTool: aiTool,
-      projectType: projectType,
-      useDatabase: useDatabase,
-      sddFramework: sddFramework
-    });
-
-    const claudeTemplatePath = resolvePath(kxcodeDir, 'CLAUDE_TEMPLATE.md');
-    await writeFile(claudeTemplatePath, renderedContent);
-    success('CLAUDE_TEMPLATE.md 已更新');
-  }
-
-  // 10. 完成
+  // 9. 完成
   printDivider();
   printTitle('✅ 更新完成！');
   info('已更新的内容：');
@@ -381,7 +372,6 @@ async function doUpdate() {
   if (sddFramework !== 'none') {
     console.log(`  - ${sddFramework} init (SDD 框架初始化)`);
   }
-  console.log('  - .kxcode/CLAUDE_TEMPLATE.md (项目模板，重新渲染)');
   info('未修改的内容：');
   console.log('  - .kxcode/config.json (保持不变)');
   console.log('');

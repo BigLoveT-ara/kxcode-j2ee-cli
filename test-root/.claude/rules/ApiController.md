@@ -5,7 +5,7 @@ globs: src/**/*Api.java, src/**/*Controller.java
 # Controller/Api 层编码规范
  
 ## Spring注入规范
-- 优先使用fianl定义变量与`@RequiredArgsConstructor`注解配合使用实现注入
+- 优先使用final定义变量与`@RequiredArgsConstructor`注解配合使用实现注入
 
 ## URL 设计
 - 使用 RESTful 风格，**仅允许 `GET` 和 `POST`**，禁止使用 `DELETE`、`PUT`、`PATCH` 等方法

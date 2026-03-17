@@ -38,47 +38,37 @@ async function loadManifest() {
 }
 
 /**
- * 根据作用域过滤技能列表
+ * 根据项目类型和工具过滤技能列表
  * @param {Array} skills - 技能列表
  * @param {string} projectType - 项目类型 (j2ee|ptah)
+ * @param {string} aiTool - AI 工具 (claude)
  * @returns {Array} 过滤后的技能目录列表
  */
-function filterSkillsByScope(skills, projectType) {
-  const scope = projectType === 'ptah' ? 'ptah' : 'normal';
-  const filteredSkills = skills.filter(skill => {
-    // scope 为 disable 的技能直接被禁用
-    if (skill.scope === 'disable') {
-      return false;
-    }
-    // scope 为 normal 的技能所有项目都可以使用
-    // scope 为 ptah 的技能只有 ptah 项目才能使用
-    if (skill.scope === 'normal') {
-      return true;
-    }
-    return scope === 'ptah';
-  });
-  return filteredSkills.map(skill => skill.dir);
+function filterSkillsByScope(skills, projectType, aiTool = 'claude') {
+  return skills.filter(skill => {
+    // 检查项目类型是否匹配（空数组或不设置表示不限制）
+    const projectTypeMatch = !skill.projectType || !skill.projectType.length || skill.projectType.includes(projectType);
+    // 检查工具是否匹配（空数组或不设置表示不限制）
+    const toolsMatch = !skill.tools || !skill.tools.length || skill.tools.includes(aiTool);
+    return projectTypeMatch && toolsMatch;
+  }).map(skill => skill.dir);
 }
 
 /**
- * 根据作用域过滤命令列表
+ * 根据项目类型和工具过滤命令列表
  * @param {Array} commands - 命令列表
  * @param {string} projectType - 项目类型 (j2ee|ptah)
+ * @param {string} aiTool - AI 工具 (claude)
  * @returns {Array} 需要复制的命令文件路径列表
  */
-function filterCommandsByScope(commands, projectType) {
-  const scope = projectType === 'ptah' ? 'ptah' : 'normal';
-  const filteredCommands = commands.filter(command => {
-    // scope 为 disable 的命令直接被禁用
-    if (command.scope === 'disable') {
-      return false;
-    }
-    if (command.scope === 'normal') {
-      return true;
-    }
-    return scope === 'ptah';
-  });
-  return filteredCommands.map(command => command.file);
+function filterCommandsByScope(commands, projectType, aiTool = 'claude') {
+  return commands.filter(command => {
+    // 检查项目类型是否匹配（空数组或不设置表示不限制）
+    const projectTypeMatch = !command.projectType || !command.projectType.length || command.projectType.includes(projectType);
+    // 检查工具是否匹配（空数组或不设置表示不限制）
+    const toolsMatch = !command.tools || !command.tools.length || command.tools.includes(aiTool);
+    return projectTypeMatch && toolsMatch;
+  }).map(command => command.file);
 }
 
 /**
@@ -174,7 +164,7 @@ async function doInit(options) {
   success(`Claude Code 已安装：${claudeVersion}`);
 
   // 2. 收集项目配置信息
-  let projectTypeAnswer, useDatabaseAnswer, sddFrameworkAnswer, aiToolAnswer;
+  let projectTypeAnswer, sddFrameworkAnswer, aiToolAnswer;
 
   // 1. 选择 AI Code 工具
   printDivider();
@@ -218,21 +208,7 @@ async function doInit(options) {
     }
   ]);
 
-  // 4. 选择是否使用数据库
-  printDivider();
-  useDatabaseAnswer = await inquirer.prompt([
-    {
-      type: 'list',
-      name: 'useDatabase',
-      message: '是否使用数据库',
-      choices: [
-        { name: '是', value: true },
-        { name: '否', value: false }
-      ]
-    }
-  ]);
-
-  // 3. 检查 SDD 框架是否安装（如果选择了不使用则跳过）
+  // 4. 检查 SDD 框架是否安装（如果选择了不使用则跳过）
   let sddFramework = sddFrameworkAnswer.sddFramework;
   let sddCheckCommand, sddInitCommand;
 
@@ -286,12 +262,39 @@ async function doInit(options) {
   const templateSkillsDir = resolvePath(getTemplateDir(), 'skills');
   // 加载 manifest 配置，根据作用域过滤 skills
   const manifest = await loadManifest();
-  const excludeSkills = filterSkillsByScope(manifest.skills, projectTypeAnswer.projectType);
-  // 复制时排除不在列表中的 skills
-  const allSkillDirs = manifest.skills.map(s => s.dir);
-  const skillsToExclude = allSkillDirs.filter(dir => !excludeSkills.includes(dir));
-  await copyDir(templateSkillsDir, skillsDir, skillsToExclude);
-  success(`SKILL 模板复制完成（已根据作用域过滤，排除 ${skillsToExclude.length} 个）`);
+  const filteredSkills = filterSkillsByScope(manifest.skills, projectTypeAnswer.projectType, aiToolAnswer.aiTool);
+  // 只复制 manifest 中明确配置且通过过滤的技能
+  for (const skillDir of filteredSkills) {
+    const srcPath = resolvePath(templateSkillsDir, skillDir);
+    const destPath = resolvePath(skillsDir, skillDir);
+    if (await fileExists(srcPath)) {
+      await copyDir(srcPath, destPath);
+    }
+  }
+
+  // 处理 skill 的 templates 配置（EJS 模板渲染）
+  const filteredSkillConfigs = manifest.skills.filter(skill =>
+    filteredSkills.includes(skill.dir) && skill.templates && skill.templates.length > 0
+  );
+  for (const skillConfig of filteredSkillConfigs) {
+    const skillDir = resolvePath(skillsDir, skillConfig.dir);
+    for (const tmpl of skillConfig.templates) {
+      const tmplFilePath = resolvePath(skillDir, tmpl.tmplFile);
+      if (await fileExists(tmplFilePath)) {
+        const tmplContent = await readFile(tmplFilePath);
+        const renderedContent = ejs.render(tmplContent, {
+          aiTool: aiToolAnswer.aiTool,
+          projectType: projectTypeAnswer.projectType,
+          sddFramework: sddFramework
+        });
+        const outFilePath = resolvePath(skillDir, tmpl.outFile);
+        await writeFile(outFilePath, renderedContent);
+        // 删除模板文件
+        await fs.remove(tmplFilePath);
+      }
+    }
+  }
+  success(`SKILL 模板复制完成（已根据作用域过滤，复制 ${filteredSkills.length} 个）`);
 
   // 7. 复制 templates/rules 到 .claude/rules
   printDivider();
@@ -306,7 +309,7 @@ async function doInit(options) {
   const templateCommandsDir = resolvePath(getTemplateDir(), 'commands');
   // 根据作用域过滤 commands，获取需要复制的文件列表
   // manifest 已经在前面加载过，直接使用
-  const commandsToCopy = filterCommandsByScope(manifest.commands, projectTypeAnswer.projectType);
+  const commandsToCopy = filterCommandsByScope(manifest.commands, projectTypeAnswer.projectType, aiToolAnswer.aiTool);
 
   // 复制过滤后的命令文件
   for (const commandFile of commandsToCopy) {
@@ -358,7 +361,6 @@ async function doInit(options) {
   const configContent = {
     aiTool: aiToolAnswer.aiTool,
     projectType: projectTypeAnswer.projectType,
-    useDatabase: useDatabaseAnswer.useDatabase,
     sddFramework: sddFramework,
     generatedAt: new Date().toISOString()
   };
@@ -367,38 +369,19 @@ async function doInit(options) {
   await writeFile(configFilePath, JSON.stringify(configContent, null, 2));
   success('config.json 已生成到 .kxcode 目录');
 
-  // 12. 渲染 CLAUDE_TEMPLATE.ejs 并输出到 .kxcode 目录
-  printDivider();
-  info('渲染 CLAUDE 模板...');
-
-  const templatePath = resolvePath(getTemplateDir(), 'project', 'CLAUDE_TEMPLATE.ejs');
-  const templateContent = await readFile(templatePath);
-  const renderedContent = ejs.render(templateContent, {
-    aiTool: aiToolAnswer.aiTool,
-    projectType: projectTypeAnswer.projectType,
-    useDatabase: useDatabaseAnswer.useDatabase,
-    sddFramework: sddFramework
-  });
-
-  const claudeTemplatePath = resolvePath(kxcodeDir, 'CLAUDE_TEMPLATE.md');
-  await writeFile(claudeTemplatePath, renderedContent);
-  success('CLAUDE_TEMPLATE.md 已生成到 .kxcode 目录');
-
   printDivider();
   info('差异化配置说明：');
   console.log(`  AI 工具：${aiToolAnswer.aiTool}`);
   console.log(`  SDD 框架：${sddFramework === 'none' ? '不使用' : sddFramework}`);
   console.log(`  项目类型：${projectTypeAnswer.projectType === 'j2ee' ? '普通 J2EE 项目' : 'Ptah 平台业务包'}`);
-  console.log(`  是否使用数据库：${useDatabaseAnswer.useDatabase ? '是' : '否'}`);
   console.log('');
 
-  // 13. 完成
+  // 12. 完成
   printDivider();
   printTitle('✅ 初始化完成！');
   info('接下来你可以：');
-  console.log('  1. 查看 .kxcode/CLAUDE_TEMPLATE.md 获取项目模板内容');
-  console.log('  2. 查看 .claude/skills/ 和 .claude/rules/ 获取预置模板');
-  console.log('  3. 使用 Claude Code 开始开发');
+  console.log('  1. 查看 .claude/skills/ 和 .claude/rules/ 获取预置模板');
+  console.log('  2. 使用 Claude Code 开始开发');
   console.log('');
 }
 

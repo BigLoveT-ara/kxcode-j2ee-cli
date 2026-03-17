@@ -38,7 +38,7 @@ Kafka中存放的数据结构已经确定，请参考`docs/framework/brain-sessi
 需要使用到字符串、文件、集合、编解码、加解密相关的 Api 时请查阅`docs/framework/utils-method.md`文档
 
 ## Spring注入规范
-- 优先使用fianl定义变量与`@RequiredArgsConstructor`注解配合使用实现注入
+- 优先使用final定义变量与`@RequiredArgsConstructor`注解配合使用实现注入
 
 
 <% if (projectType === 'ptah') { %>
@@ -57,7 +57,6 @@ Kafka中存放的数据结构已经确定，请参考`docs/framework/brain-sessi
 ## 高速缓存
 [这里填充定时任务相关内容]
 
-<% if (useDatabase === true) { %>
 # 数据库表设计和核心关系
 
 ## 数据库表与 DAO 映射
@@ -65,4 +64,3 @@ Kafka中存放的数据结构已经确定，请参考`docs/framework/brain-sessi
 
 ## 表关联
 [这里填充表结构之间的关系]
-<% } -%>
